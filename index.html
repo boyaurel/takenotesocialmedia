@@ -253,7 +253,7 @@ const avBg=p=>urls[p.id+':avatar']?'':`background:linear-gradient(135deg,hsl(${h
 const avatar=p=>urls[p.id+':avatar']?`<img src="${urls[p.id+':avatar']}" alt="">`:esc((p.user||'?')[0].toUpperCase());
 function postHTML(p,i){
  const v=urls[p.id+':video'],pal=PAL[(+p.palette||0)%PAL.length],s=S(p);
- let m=v?`<video src="${v}" playsinline webkit-playsinline muted loop preload="auto"></video>`:'';
+ let m=v?`<video src="${v}" playsinline webkit-playsinline muted loop preload="${i===cur||i===cur+1||(cur<0&&i<=(cfg.settings.startIndex||0)+1)?'auto':'metadata'}"></video>`:'';
  if(p.green)m+=`<div class="greenbox">${cfg.settings.markers?'<i class="mk tl"></i><i class="mk tr"></i><i class="mk bl"></i><i class="mk br"></i>':''}</div>`;
  else if(!v)m+=`<div class="ph" style="--c1:${pal[0]};--c2:${pal[1]};--c3:${pal[2]}"><i class="b1"></i><i class="b2"></i><i class="b3"></i></div>${p.overlay?`<div class="ovl">${esc(p.overlay)}</div>`:''}`;
  return `<section class="post" data-i="${i}"><div class="media${p.green?' g':''}">${m}</div><div class="shade"></div><div class="pauseico glass">${ICON.play}</div>
@@ -282,7 +282,9 @@ function render(){
 function activate(el){
  const i=+el.dataset.i;if(i===cur)return;cur=i;el.classList.remove('paused');
  const v=el.querySelector('video');
- if(v){v.currentTime=0;v.muted=!(cfg.settings.sound&&unlocked);v.play().catch(()=>{v.muted=true;v.play().catch(()=>{})})}
+ feed.querySelectorAll('video').forEach(o=>{if(o!==v&&!o.paused)o.pause()});
+ const nx=feed.querySelector(`.post[data-i="${i+1}"] video`);if(nx&&nx.preload!=='auto'){nx.preload='auto';nx.load()}
+ if(v){v.currentTime=0;v.muted=!(cfg.settings.sound&&unlocked);v.play().catch(err=>{if(err&&err.name==='NotAllowedError'&&cur===i){v.muted=true;v.play().catch(()=>{})}})}
 }
 const curEl=()=>feed.querySelector(`.post[data-i="${cur}"]`);
 const jump=i=>requestAnimationFrame(()=>{feed.scrollTop=i*feed.clientHeight});
@@ -415,7 +417,7 @@ su.addEventListener('click',async e=>{const b=e.target.closest('[data-op]');if(!
  if(op==='full'){const d=document.documentElement;try{await(d.requestFullscreen||d.webkitRequestFullscreen).call(d)}catch(err){toast('Full screen is not available here. On iPhone use Add to Home Screen.',3000)}return}
  if(op==='reset-likes'){for(const k in st)delete st[k];toast('Likes reset');return}
  if(op==='reset'){if(confirmDel!=='reset'){confirmDel='reset';b.textContent='Tap again to confirm';return}
-  for(const p of cfg.posts){await clearFile(p,'video');await clearFile(p,'avatar')}cfg=clone(DEFAULT);for(const k in st)delete st[k];for(const k in urls)delete urls[k];await loadFolder()}
+  for(const p of cfg.posts){await clearFile(p,'video');await clearFile(p,'avatar')}cfg=clone(DEFAULT);for(const k in st)delete st[k];for(const k in urls)delete urls[k];render();await loadFolder(refreshPost)}
  if(op==='up'&&i>0)[cfg.posts[i-1],cfg.posts[i]]=[cfg.posts[i],cfg.posts[i-1]];
  if(op==='down'&&i<cfg.posts.length-1)[cfg.posts[i+1],cfg.posts[i]]=[cfg.posts[i],cfg.posts[i+1]];
  if(op==='clrv')await clearFile(cfg.posts[i],'video');
@@ -439,17 +441,33 @@ const names=(n,exts)=>{const out=[];for(const b of [n,'0'+n])for(const x of exts
 const exists=async src=>{try{const r=await fetch(src,{method:'HEAD',cache:'no-store'});return r.ok}catch(e){return null}};
 async function findMedia(dir,n,kind){
  const exts=kind==='video'?['mp4','mov','m4v','webm']:['jpg','jpeg','png','webp','heic'];
- let foundButBad=null;
- for(const name of names(n,exts)){const src=dir+'/'+encodeURIComponent(name);
-  if(isWeb){const ex=await exists(src);if(ex===false)continue}
-  if(await probe(src,kind))return {src,name,status:'ok'};
-  if(isWeb&&!foundButBad)foundButBad=name}
- return foundButBad?{name:foundButBad,status:'unplayable'}:{status:'missing'}}
-async function loadFolder(){
- await Promise.all(cfg.posts.map(async(p,i)=>{
+ const list=names(n,exts).map(name=>({name,src:dir+'/'+encodeURIComponent(name)}));
+ if(isWeb){ /* ask the server about every possible name at once, keep the first that exists */
+  let net=true;
+  for(const group of [list.slice(0,4),list.slice(4)]){
+   const res=await Promise.all(group.map(c=>exists(c.src)));
+   const i=res.findIndex(x=>x===true);
+   if(i>=0)return {...group[i],status:'ok'};
+   if(res.some(x=>x===null))net=false}
+  if(net)return {status:'missing'}}
+ for(const c of list){if(await probe(c.src,kind))return {...c,status:'ok'}}  /* opened as a file: try each name */
+ return {status:'missing'}}
+function refreshPost(i){const old=feed.querySelector(`.post[data-i="${i}"]`);if(!old)return;
+ const t=document.createElement('div');t.innerHTML=postHTML(cfg.posts[i],i);const el=t.firstElementChild;
+ if(old.classList.contains('paused'))el.classList.add('paused');
+ if(io){io.unobserve(old);io.observe(el)}old.replaceWith(el);
+ if(i===cur){cur=-1;activate(el)}}
+async function loadFolder(onEach){
+ const s0=cfg.settings.startIndex||0;
+ const one=async(p,i)=>{
   const d=diag[p.id]={};
-  if(!urls[p.id+':video']){const r=await findMedia('videos',i+1,'video');d.video=r;if(r.src)urls[p.id+':video']=r.src}else d.video={status:'picked'};
-  if(!urls[p.id+':avatar']){const r=await findMedia('avatars',i+1,'image');d.avatar=r;if(r.src)urls[p.id+':avatar']=r.src}}))}
+  if(!urls[p.id+':avatar'])findMedia('avatars',i+1,'image').then(r=>{d.avatar=r;if(r.src){urls[p.id+':avatar']=r.src;onEach&&onEach(i)}});
+  if(urls[p.id+':video']){d.video={status:'picked'};return}
+  const r=await findMedia('videos',i+1,'video');d.video=r;
+  if(r.src){urls[p.id+':video']=r.src;onEach&&onEach(i);
+   if(isWeb)probe(r.src,'video').then(ok=>{if(!ok)d.video={name:r.name,status:'unplayable'}})}};
+ await one(cfg.posts[s0],s0);
+ await Promise.all(cfg.posts.map((p,i)=>i===s0?null:one(p,i)))}
 function diagLine(p,i){const v=(diag[p.id]||{}).video;if(!v)return'';
  if(v.status==='picked')return'<p class="note" style="color:#7d9">✓ Using a video chosen on this phone</p>';
  if(v.status==='ok')return`<p class="note" style="color:#7d9">✓ Loaded videos/${esc(v.name)}</p>`;
@@ -458,8 +476,8 @@ function diagLine(p,i){const v=(diag[p.id]||{}).video;if(!v)return'';
 (async()=>{
  for(const p of cfg.posts)for(const k of ['video','avatar']){if(!p['has_'+k])continue;
   try{const b=await getF(p.id+':'+k);if(b)urls[p.id+':'+k]=URL.createObjectURL(b);else p['has_'+k]=false}catch(e){persistOK=false}}
- await loadFolder();
  render();jump(cfg.settings.startIndex||0);
+ await loadFolder(refreshPost);
  let seen=false;try{seen=localStorage.getItem(KEY+':hint')}catch(e){}
  const nVid=cfg.posts.filter(p=>urls[p.id+':video']).length;
  if(!nVid)setTimeout(()=>toast('No videos found. Tap the swirl logo 3 times to see why.',4000),700);
