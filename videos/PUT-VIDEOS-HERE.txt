@@ -1,0 +1,12 @@
+Put your videos in this folder, named by the post they belong to:
+
+  1.mp4  -> post 1 (first video the actor sees)
+  2.mp4  -> post 2
+  3.mp4  -> post 3
+  4.mp4  -> post 4  <- the influencer video about the library note
+  5.mp4  -> post 5
+  6.mp4  -> post 6
+
+.mov files from an iPhone also work (1.mov, 2.mov ...).
+Vertical videos (9:16) look right. Keep each one under about 50 MB so they load fast.
+Any post without a video shows a coloured placeholder instead.

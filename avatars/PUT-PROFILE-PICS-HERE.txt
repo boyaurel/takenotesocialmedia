@@ -1,0 +1,2 @@
+Optional. Profile pictures, named by post: 1.jpg, 2.jpg ... 6.jpg (.png also works).
+Square photos look best. Posts without one show a coloured circle with a letter.

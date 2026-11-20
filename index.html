@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="swirl">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<title>swirl</title>
+<style>
+/* VOICE: a polished, invented short-video app called "swirl"; confident, soft, rounded
+   IDEA: frosted glass floating over full-bleed video, like a premium camera app
+   PICTURE: the feed, full screen
+   COLOUR and TYPE: black; violet #7B61FF to orange #FF8A3D brand gradient; rounded system type
+   LAYOUT: brand row + pill tabs on top, glass action capsule right, creator row bottom, floating nav */
+:root{--sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px);--v:#7B61FF;--o:#FF8A3D;--navh:62px;
+ --navb:calc(var(--sb) + 10px);--above:calc(var(--navh) + var(--navb) + 14px);color-scheme:dark;
+ --rf:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;min-width:0}
+html,body{height:100%;background:#000;color:#fff;overflow:hidden;overscroll-behavior:none;touch-action:manipulation;
+ font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+svg{display:block}
+.ic{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.glass{background:rgba(22,22,28,.38);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border:1px solid rgba(255,255,255,.13)}
+#feed{position:fixed;inset:0;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;overscroll-behavior:contain;background:#000}
+#feed::-webkit-scrollbar{display:none}
+.post{position:relative;height:100%;scroll-snap-align:start;scroll-snap-stop:always;overflow:hidden;background:#0d0d0d}
+.media{position:absolute;inset:0}
+.media video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.media.g video{opacity:0}
+.ph{position:absolute;inset:0;background:linear-gradient(160deg,var(--c1),var(--c2) 55%,var(--c3));overflow:hidden}
+.ph i{position:absolute;border-radius:50%;filter:blur(42px);opacity:.75;animation:fl 9s ease-in-out infinite alternate}
+.ph .b1{width:75%;height:45%;left:-12%;top:8%;background:var(--c3)}
+.ph .b2{width:65%;height:40%;right:-18%;top:42%;background:var(--c1);animation-duration:11s}
+.ph .b3{width:55%;height:32%;left:18%;bottom:-6%;background:#fff;opacity:.22;animation-duration:13s}
+@keyframes fl{to{transform:translate(12%,-9%) scale(1.25)}}
+.post.paused .ph i{animation-play-state:paused}
+.ovl{position:absolute;left:0;right:0;top:34%;text-align:center;padding:0 36px;font-family:var(--rf);font-weight:800;font-size:27px;line-height:1.2;text-shadow:0 2px 14px rgba(0,0,0,.45);text-wrap:balance}
+.greenbox{position:absolute;inset:0;background:#00b140}
+.mk{position:absolute;width:20px;height:20px}
+.mk::before,.mk::after{content:"";position:absolute;background:#fff;box-shadow:0 0 0 1px #000}
+.mk::before{left:9px;top:0;width:2px;height:20px}.mk::after{top:9px;left:0;height:2px;width:20px}
+.mk.tl{left:14%;top:20%}.mk.tr{right:26%;top:20%}.mk.bl{left:14%;bottom:38%}.mk.br{right:26%;bottom:38%}
+.shade{position:absolute;left:0;right:0;bottom:0;height:52%;background:linear-gradient(transparent,rgba(0,0,0,.6));pointer-events:none}
+#topshade{position:fixed;left:0;right:0;top:0;height:calc(150px + var(--st));background:linear-gradient(rgba(0,0,0,.5),transparent);pointer-events:none;z-index:3}
+.pauseico{position:absolute;left:50%;top:50%;width:74px;height:74px;margin:-37px 0 0 -37px;border-radius:50%;display:grid;place-items:center;opacity:0;transform:scale(.85);transition:.18s;pointer-events:none}
+.pauseico svg{width:30px;height:30px;margin-left:4px}
+.post.paused .pauseico{opacity:1;transform:none}
+/* right action capsule */
+.rail{position:absolute;right:10px;bottom:calc(var(--above) + 16px);width:58px;border-radius:30px;padding:14px 0 12px;display:flex;flex-direction:column;align-items:center;gap:15px;z-index:2}
+.act{display:flex;flex-direction:column;align-items:center;gap:3px;font-family:var(--rf);font-size:12px;font-weight:700}
+.act svg{width:28px;height:28px}
+.act.like.on svg{fill:url(#gLike);stroke:url(#gLike);animation:pop .4s}
+.act.save.on svg{fill:#fff;animation:pop .4s}
+.act.rep.on{color:#5BE3A8}
+.act.rep.on svg{animation:spinr .5s}
+@keyframes pop{40%{transform:scale(1.32)}}
+@keyframes spinr{to{transform:rotate(180deg)}}
+/* bottom creator block */
+.meta{position:absolute;left:14px;right:84px;bottom:calc(var(--above) + 12px);z-index:2;text-shadow:0 1px 3px rgba(0,0,0,.45)}
+.who{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.av{width:40px;height:40px;flex:none;border-radius:13px;overflow:hidden;display:grid;place-items:center;font-family:var(--rf);font-weight:800;font-size:17px;box-shadow:0 0 0 2px rgba(255,255,255,.85)}
+.av img{width:100%;height:100%;object-fit:cover}
+.nm{display:flex;flex-direction:column;line-height:1.2}
+.nm b{font-size:15.5px;font-weight:700;display:flex;align-items:center;gap:4px}
+.nm small{font-size:12px;opacity:.75}
+.vf{width:15px;height:15px;flex:none}
+.fol{margin-left:4px;font-size:13px;font-weight:700;padding:6px 14px;border-radius:999px;background:linear-gradient(90deg,var(--v),var(--o));text-shadow:none;flex:none}
+.fol.on{background:rgba(255,255,255,.18);font-weight:600}
+.cap{font-size:14.5px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cap.open{display:block}
+.cap b{font-weight:700;color:#d9d1ff}
+.snd{display:inline-flex;align-items:center;gap:7px;margin-top:10px;font-size:12.5px;font-weight:600;padding:6px 12px 6px 9px;border-radius:999px;max-width:78%;text-shadow:none}
+.snd svg{width:16px;height:16px;flex:none}
+.mq{overflow:hidden;white-space:nowrap}
+.mq span{display:inline-block;animation:mq 10s linear infinite}
+@keyframes mq{to{transform:translateX(-50%)}}
+.prog{position:absolute;left:16px;right:16px;bottom:calc(var(--above) - 2px);height:3px;border-radius:2px;background:rgba(255,255,255,.2);z-index:2;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--v),var(--o))}
+.burst{position:absolute;width:104px;height:104px;margin:-52px 0 0 -52px;pointer-events:none;z-index:6;animation:burst .85s ease-out forwards;filter:drop-shadow(0 4px 16px rgba(0,0,0,.35))}
+.burst svg{width:100%;height:100%;fill:url(#gLike)}
+@keyframes burst{0%{transform:rotate(var(--r)) scale(.3);opacity:0}15%{transform:rotate(var(--r)) scale(1.15);opacity:1}30%{transform:rotate(var(--r)) scale(.95)}70%{transform:rotate(var(--r)) scale(1);opacity:1}100%{transform:rotate(var(--r)) scale(1.35) translateY(-60px);opacity:0}}
+/* top */
+#top{position:fixed;left:0;right:0;top:calc(var(--st) + 8px);z-index:4;padding:0 14px}
+.brandrow{display:flex;align-items:center;justify-content:space-between;height:40px}
+#brand{display:flex;align-items:center;gap:7px;font-family:var(--rf);font-weight:800;font-size:25px;letter-spacing:-.5px;cursor:pointer}
+#brand svg{width:28px;height:28px}
+.tico{display:flex;gap:6px}
+.tico button{width:40px;height:40px;display:grid;place-items:center;position:relative}
+.tico svg{width:25px;height:25px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
+.dot{position:absolute;top:8px;right:8px;width:9px;height:9px;border-radius:50%;background:var(--o);box-shadow:0 0 0 2px rgba(0,0,0,.35)}
+#tabs{margin:8px auto 0;width:max-content;display:flex;padding:4px;border-radius:999px;gap:2px}
+#tabs span{padding:7px 15px;border-radius:999px;font-size:14px;font-weight:600;opacity:.8;transition:background .2s,color .2s}
+#tabs span.on{background:#fff;color:#000;opacity:1}
+/* floating nav */
+#nav{position:fixed;left:14px;right:14px;bottom:var(--navb);height:var(--navh);border-radius:24px;display:flex;align-items:center;z-index:5;background:rgba(18,18,22,.72)}
+#nav a{flex:1;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:rgba(255,255,255,.6);position:relative}
+#nav a.on{color:#fff}
+#nav a.on::after{content:"";width:5px;height:5px;border-radius:50%;background:linear-gradient(90deg,var(--v),var(--o))}
+#nav a:not(.on)::after{content:"";width:5px;height:5px}
+#nav a svg{width:26px;height:26px}
+#nav .plus{width:48px;height:48px;border-radius:17px;background:linear-gradient(135deg,var(--v),var(--o));display:grid;place-items:center;color:#fff;box-shadow:0 4px 16px rgba(123,97,255,.45)}
+#nav .plus svg{width:24px;height:24px}
+#nav a.mid::after{display:none}
+.badge{position:absolute;top:9px;left:calc(50% + 5px);background:var(--o);color:#fff;font-family:var(--rf);font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 5px;min-width:18px;text-align:center}
+/* comments */
+#back{position:fixed;inset:0;background:rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .25s;z-index:40}
+#back.on{opacity:1;pointer-events:auto}
+#sheet{position:fixed;left:8px;right:8px;bottom:8px;height:68%;background:rgba(24,24,30,.94);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.08);border-radius:26px;z-index:41;transform:translateY(105%);transition:transform .32s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;padding-bottom:var(--sb);overflow:hidden}
+#sheet.on{transform:none}
+.grab{width:38px;height:5px;border-radius:3px;background:#55555c;margin:8px auto 0}
+.shh{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 10px 20px}
+.shh h3{font-family:var(--rf);font-size:18px;font-weight:800}
+.shh h3 span{font-weight:600;opacity:.55;margin-left:6px;font-size:15px}
+#shx{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.1);display:grid;place-items:center}
+#shx svg{width:16px;height:16px}
+#clist{flex:1;overflow-y:auto;padding:0 18px 8px;-webkit-overflow-scrolling:touch}
+.c{display:flex;gap:11px;padding:11px 0}
+.cav{width:36px;height:36px;border-radius:12px;flex:none;display:grid;place-items:center;font-family:var(--rf);font-weight:800;font-size:15px}
+.cb{flex:1}
+.cn{font-size:13px;font-weight:600;color:#c9c9d1;margin-bottom:2px;display:flex;gap:6px;align-items:center}
+.cn em{font-style:normal;font-size:10.5px;font-weight:700;color:#fff;background:linear-gradient(90deg,var(--v),var(--o));padding:1px 6px;border-radius:5px}
+.ct{font-size:14.5px;line-height:1.4}
+.cm{font-size:12px;color:#8a8a93;margin-top:5px;font-weight:500}
+.cl{display:flex;flex-direction:column;align-items:center;gap:2px;padding-top:6px;color:#8a8a93;font-size:11px;font-weight:600;width:32px}
+.cl svg{width:18px;height:18px}
+.cl.on{color:#ff5a7a}.cl.on svg{fill:#ff5a7a;stroke:#ff5a7a}
+.cin{display:flex;gap:10px;align-items:center;padding:10px 12px}
+.cin input{flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:11px 15px;color:#fff;font-size:16px;outline:none}
+.cin button{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,var(--v),var(--o));display:grid;place-items:center;flex:none}
+.cin button svg{width:20px;height:20px}
+#toast{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);padding:11px 18px;border-radius:14px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s;z-index:60;text-align:center;max-width:80%}
+#toast.on{opacity:1}
+/* crew setup */
+#setup{position:fixed;inset:0;background:#0e0e12;z-index:100;overflow-y:auto;display:none;padding:calc(var(--st) + 14px) 14px calc(var(--sb) + 40px);-webkit-user-select:text;user-select:text;font-size:15px}
+#setup.on{display:block}
+.suh{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.suh h1{font-size:22px}
+.card{background:#1a1a20;border-radius:14px;padding:14px;margin-bottom:12px}
+.card h2{font-size:16px;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card h2 small{font-weight:400;color:#8e8e98;font-size:13px}
+.note{color:#8e8e98;font-size:13px;line-height:1.45;margin:4px 0 10px}
+#setup label{display:block;font-size:13px;color:#a1a1aa;margin:9px 0 4px}
+#setup label.chk{display:flex;align-items:center;gap:9px;color:#eee;font-size:15px}
+#setup input[type=text],#setup input[type=number],#setup textarea,#setup select{width:100%;background:#2a2a32;border:1px solid #34343c;border-radius:9px;color:#fff;font-size:16px;padding:9px 10px;font-family:inherit}
+#setup textarea{min-height:70px;resize:vertical}
+#setup input[type=checkbox]{width:20px;height:20px;accent-color:var(--v)}
+.g5{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.btn{background:#2c2c34;border-radius:9px;padding:10px 13px;font-size:14px;font-weight:600;min-height:40px}
+.btn.pri{background:linear-gradient(90deg,var(--v),var(--o))}
+.btn.dng{color:#ff7a7a}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.file{display:block;background:#2a2a32;border:1px dashed #555;border-radius:9px;padding:10px;font-size:14px;color:#ddd;text-align:center;cursor:pointer}
+.file input{display:none}
+.file.has{border-style:solid;border-color:#3a7;color:#7d9}
+@media (prefers-reduced-motion:reduce){.ph i,.mq span{animation:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+ <linearGradient id="gLike" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF3D7F"/><stop offset="1" stop-color="#FF8A3D"/></linearGradient>
+ <linearGradient id="gBrand" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7B61FF"/><stop offset="1" stop-color="#FF8A3D"/></linearGradient>
+</defs></svg>
+<div id="feed"></div>
+<div id="topshade"></div>
+<div id="top">
+  <div class="brandrow">
+    <div id="brand"><svg viewBox="0 0 24 24"><path d="M12 12a2 2 0 0 1 4 0a4 4 0 0 1-8 0a6 6 0 0 1 12 0" transform="translate(-2 1)" fill="none" stroke="url(#gBrand)" stroke-width="2.3" stroke-linecap="round"/></svg>swirl</div>
+    <div class="tico">
+      <button aria-label="Search"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg></button>
+      <button aria-label="Activity"><svg class="ic" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 21h4"/></svg><i class="dot"></i></button>
+    </div>
+  </div>
+  <div id="tabs" class="glass"><span data-t="0">Following</span><span data-t="1" class="on">For you</span><span data-t="2">Nearby</span></div>
+</div>
+<nav id="nav" class="glass">
+  <a class="on" aria-label="Home"><svg class="ic" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-5.5H9v5.5H5.5A1.5 1.5 0 0 1 4 19z"/></svg></a>
+  <a aria-label="Explore"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="3.5"/><rect x="4" y="13" width="7" height="7" rx="3.5"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg></a>
+  <a class="mid" aria-label="Create"><span class="plus"><svg class="ic" viewBox="0 0 24 24" style="stroke-width:2.6"><path d="M12 6v12M6 12h12"/></svg></span></a>
+  <a aria-label="Messages"><svg class="ic" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l.9-4.4A8 8 0 1 1 20 12z"/></svg><span class="badge" id="badge"></span></a>
+  <a aria-label="Profile"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="10" r="3"/><path d="M6.5 18.2c1.3-2 3.2-3 5.5-3s4.2 1 5.5 3"/></svg></a>
+</nav>
+<div id="back"></div>
+<div id="sheet">
+  <div class="grab"></div>
+  <div class="shh"><h3>Comments<span id="shCount"></span></h3><button id="shx" aria-label="Close"><svg class="ic" viewBox="0 0 24 24" style="stroke-width:2.6"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <div id="clist"></div>
+  <form class="cin" id="cform"><input id="cinput" type="text" placeholder="Say something nice…" autocomplete="off"><button type="submit" aria-label="Post"><svg class="ic" viewBox="0 0 24 24" style="stroke-width:2.4"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button></form>
+</div>
+<div id="toast" class="glass"></div>
+<div id="setup"></div>
+
+<script>
+{
+const I=(d,extra='')=>`<svg class="ic" viewBox="0 0 24 24" ${extra}>${d}</svg>`;
+const ICON={
+ heart:I('<path d="M12 20s-7.5-4.4-8.6-9.6C2.7 7 4.9 4.5 7.7 4.5c1.9 0 3.3 1 4.3 2.6 1-1.6 2.4-2.6 4.3-2.6 2.8 0 5 2.5 4.3 5.9C19.5 15.6 12 20 12 20z"/>'),
+ cmt:I('<path d="M20 11.5a7.5 7.5 0 0 1-10.9 6.7L4.5 19.5l1.3-4.1A7.5 7.5 0 1 1 20 11.5z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01" style="stroke-width:2.6"/>'),
+ rep:I('<path d="M17 3.5 20 6.5l-3 3"/><path d="M4 11.5V10a3.5 3.5 0 0 1 3.5-3.5H20"/><path d="M7 20.5 4 17.5l3-3"/><path d="M20 12.5V14a3.5 3.5 0 0 1-3.5 3.5H4"/>'),
+ send:I('<path d="M20.5 3.5 10 14"/><path d="M20.5 3.5 14 20.5l-4-6.5-6.5-4z"/>'),
+ save:I('<path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4.2-6.5 4.2v-16a1 1 0 0 1 1-1z"/>'),
+ wave:I('<path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/>'),
+ play:'<svg viewBox="0 0 24 24" fill="#fff"><path d="M7 5.2v13.6a1.2 1.2 0 0 0 1.8 1l11-6.8a1.2 1.2 0 0 0 0-2l-11-6.8A1.2 1.2 0 0 0 7 5.2z"/></svg>',
+ vf:'<svg class="vf" viewBox="0 0 24 24"><path fill="url(#gBrand)" d="M12 1.8l2.4 1.8 3-.2 1 2.8 2.5 1.7-.9 2.9.9 2.9-2.5 1.7-1 2.8-3-.2L12 21.8l-2.4-1.8-3 .2-1-2.8-2.5-1.7.9-2.9-.9-2.9 2.5-1.7 1-2.8 3 .2z"/><path d="m8 12 2.8 2.7L16.2 9.3" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+ sheart:I('<path d="M12 20s-7.5-4.4-8.6-9.6C2.7 7 4.9 4.5 7.7 4.5c1.9 0 3.3 1 4.3 2.6 1-1.6 2.4-2.6 4.3-2.6 2.8 0 5 2.5 4.3 5.9C19.5 15.6 12 20 12 20z"/>'),
+ burst:'<svg viewBox="0 0 24 24"><path d="M12 20s-7.5-4.4-8.6-9.6C2.7 7 4.9 4.5 7.7 4.5c1.9 0 3.3 1 4.3 2.6 1-1.6 2.4-2.6 4.3-2.6 2.8 0 5 2.5 4.3 5.9C19.5 15.6 12 20 12 20z"/></svg>'
+};
+const PAL=[['#ff8a5c','#e2477b','#ffd36e'],['#2a1b12','#8a4b2a','#f2b36d'],['#7bc6ff','#3d6fd1','#d8f3ff'],['#2b2238','#5b3c6e','#c79b6a'],['#ff5fa2','#7a3cff','#ffb3e0'],['#21352b','#4f7d5c','#e8e1b5']];
+const DEFAULT={settings:{startIndex:0,sound:true,markers:true,badge:'3'},posts:[
+ {id:'p1',user:'golden.hour.lina',verified:false,caption:'chasing the last light before winter hits 🌅 #sunset #goldenhour',sound:'original audio · golden.hour.lina',likes:48200,comments:612,reposts:1300,shares:940,saves:3100,overlay:'POV: you finally said yes to the beach at 6pm',palette:0,green:false,
+  commentsText:'mara.v | the colours in this are unreal | 812\nsunny.days | where is this?? | 340\njon_p | needed this today | 122'},
+ {id:'p2',user:'kareem.cooks',verified:false,caption:'the 10-minute pasta that got me through exams 🍝 recipe in comments #easyrecipes #pasta',sound:'Cozy Kitchen Beats · LoFi Room',likes:213000,comments:2840,reposts:15400,shares:8800,saves:41200,overlay:'the only pasta recipe you will ever need',palette:1,green:false,
+  commentsText:'kareem.cooks | recipe: garlic, chilli, butter, parmesan, pasta water. that is it. | 9120\nfoodie.amal | making this tonight | 2011\nbenny | the cheese pull at the end 😮‍💨 | 877'},
+ {id:'p3',user:'coco.the.toypoodle',verified:false,caption:'she heard the treat bag from three rooms away 🐩 #toypoodle #poodlesofswirl #doglife',sound:'Silly Walk · Funny Tunes',likes:91400,comments:1203,reposts:7200,shares:6100,saves:5200,overlay:'when you hear the fridge open',palette:2,green:false,
+  commentsText:'nora.k | the little bounce 😭 | 3301\nrayyan | my poodle does the exact same thing | 1288\nella.grooms | those curls are perfect, who is her groomer?? | 940'},
+ {id:'p4',user:'thestacks.sara',verified:true,caption:'Someone found a handwritten note tucked inside a returned library book… and now the whole city is trying to figure out who wrote it 👀📚 Part 1 #TakeNote #librarynote #unsolved #bookworm',sound:'original audio · thestacks.sara',likes:1240000,comments:48300,reposts:121000,shares:92400,saves:186000,overlay:'',palette:3,green:false,
+  commentsText:'nightowl.reads | who else immediately went to check their own library books 😭 | 8421\njamal.k | the handwriting looks so old?? this has to be decades old | 5210\npriya_writes | PART 2 PLEASE I need to know | 4987\nquiet.librarian | librarian here. we have been talking about this all week at work 👀 | 3302\ntheo.m | calling it now, someone is going to find the person who wrote it | 2215\nhannah.b | @mira.j this is literally our library?? | 1876\nskeptic_sam | marketing stunt. 100%. | 954\nluna.reads | the fact that it was folded into THAT book though… | 802\nomar.a | not me tearing up over a note from a stranger at 2am | 640\nthestacks.sara | part 2 is coming, I promise 🤫 | 12400'},
+ {id:'p5',user:'move.with.nadia',verified:false,caption:'day 12 of trying to learn this routine 😅 #dancechallenge #progress',sound:'Midnight Drive · Neon Club',likes:67300,comments:904,reposts:2100,shares:1500,saves:2300,overlay:'day 12. still not there.',palette:4,green:false,
+  commentsText:'yas.dances | you are SO close | 1022\ncoach.ella | the arms on the 3rd count 👌 | 410'},
+ {id:'p6',user:'office.chaos.daily',verified:false,caption:'nobody: / my manager at 4:59pm on a Friday: #worklife #relatable',sound:'original audio · office.chaos.daily',likes:356000,comments:5120,reposts:38800,shares:44100,saves:9800,overlay:'"quick question before you go"',palette:5,green:false,
+  commentsText:'faisal.h | this is a personal attack | 6610\nmeg.t | sending this to my whole team | 3009'}
+]};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rich=s=>esc(s).replace(/(^|\s)([#@][^\s#@,!?]+)/g,'$1<b>$2</b>');
+const hue=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;return h};
+const tr=x=>String(Math.round(x*10)/10);
+const fmt=n=>{n=Number(n)||0;return n>=1e6?tr(n/1e6)+'M':n>=1e4?tr(n/1e3)+'K':n.toLocaleString('en-US')};
+const clone=o=>JSON.parse(JSON.stringify(o));
+const KEY='swirl-feed-v2';
+let cfg;try{cfg=JSON.parse(localStorage.getItem(KEY))||clone(DEFAULT)}catch(e){cfg=clone(DEFAULT)}
+{const q=cfg.posts&&cfg.posts.find(p=>p.id==='p3'&&p.user==='biscuit.the.corgi');if(q){const d=DEFAULT.posts.find(p=>p.id==='p3');for(const k of ['user','caption','commentsText'])q[k]=d[k];try{localStorage.setItem(KEY,JSON.stringify(cfg))}catch(e){}}}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(cfg))}catch(e){}};
+const urls={},st={};
+let persistOK=true,dbp;
+const db=()=>dbp||(dbp=new Promise((res,rej)=>{try{const r=indexedDB.open('swirl-feed',1);r.onupgradeneeded=()=>r.result.createObjectStore('files');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}}));
+const idb=(mode,fn)=>db().then(d=>new Promise((res,rej)=>{const tx=d.transaction('files',mode);const q=fn(tx.objectStore('files'));tx.oncomplete=()=>res(q&&q.result);tx.onerror=()=>rej(tx.error)}));
+const putF=(k,b)=>idb('readwrite',s=>s.put(b,k));
+const getF=k=>idb('readonly',s=>s.get(k));
+const delF=k=>idb('readwrite',s=>s.delete(k)).catch(()=>{});
+
+const feed=$('#feed');
+let cur=-1,unlocked=false,io;
+const S=p=>st[p.id]||(st[p.id]={liked:false,saved:false,reposted:false,followed:false,likes:+p.likes||0,saves:+p.saves||0,shares:+p.shares||0,reposts:+p.reposts||0,comments:+p.comments||0,mine:[]});
+const avBg=p=>urls[p.id+':avatar']?'':`background:linear-gradient(135deg,hsl(${hue(p.user)} 55% 50%),hsl(${(hue(p.user)+50)%360} 60% 40%))`;
+const avatar=p=>urls[p.id+':avatar']?`<img src="${urls[p.id+':avatar']}" alt="">`:esc((p.user||'?')[0].toUpperCase());
+function postHTML(p,i){
+ const v=urls[p.id+':video'],pal=PAL[(+p.palette||0)%PAL.length],s=S(p);
+ let m=v?`<video src="${v}" playsinline webkit-playsinline muted loop preload="auto"></video>`:'';
+ if(p.green)m+=`<div class="greenbox">${cfg.settings.markers?'<i class="mk tl"></i><i class="mk tr"></i><i class="mk bl"></i><i class="mk br"></i>':''}</div>`;
+ else if(!v)m+=`<div class="ph" style="--c1:${pal[0]};--c2:${pal[1]};--c3:${pal[2]}"><i class="b1"></i><i class="b2"></i><i class="b3"></i></div>${p.overlay?`<div class="ovl">${esc(p.overlay)}</div>`:''}`;
+ return `<section class="post" data-i="${i}"><div class="media${p.green?' g':''}">${m}</div><div class="shade"></div><div class="pauseico glass">${ICON.play}</div>
+ <div class="rail glass">
+  <button class="act like${s.liked?' on':''}" data-a="like">${ICON.heart}<span>${fmt(s.likes)}</span></button>
+  <button class="act" data-a="cmt">${ICON.cmt}<span>${fmt(s.comments)}</span></button>
+  <button class="act rep${s.reposted?' on':''}" data-a="rep">${ICON.rep}<span>${fmt(s.reposts)}</span></button>
+  <button class="act" data-a="share">${ICON.send}<span>${fmt(s.shares)}</span></button>
+  <button class="act save${s.saved?' on':''}" data-a="save">${ICON.save}<span>${fmt(s.saves)}</span></button>
+ </div>
+ <div class="meta">
+  <div class="who"><div class="av" style="${avBg(p)}">${avatar(p)}</div><div class="nm"><b>${esc(p.user)}${p.verified?ICON.vf:''}</b><small>${fmt(Math.round((+p.likes||0)*0.31+1200))} followers</small></div><button class="fol${s.followed?' on':''}" data-a="follow">${s.followed?'Following':'Follow'}</button></div>
+  <div class="cap">${rich(p.caption)}</div>
+  <div class="snd glass">${ICON.wave}<div class="mq"><span>${esc(p.sound)}&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;${esc(p.sound)}&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;</span></div></div>
+ </div>
+ <div class="prog"><i></i></div></section>`;
+}
+function render(){
+ if(io)io.disconnect();
+ feed.innerHTML=cfg.posts.map(postHTML).join('');
+ $('#badge').textContent=cfg.settings.badge||'';$('#badge').style.display=cfg.settings.badge?'':'none';
+ cur=-1;
+ io=new IntersectionObserver(es=>es.forEach(e=>{const v=e.target.querySelector('video');if(e.intersectionRatio>=.6)activate(e.target);else if(v)v.pause()}),{root:feed,threshold:[0,.6]});
+ feed.querySelectorAll('.post').forEach(el=>io.observe(el));
+}
+function activate(el){
+ const i=+el.dataset.i;if(i===cur)return;cur=i;el.classList.remove('paused');
+ const v=el.querySelector('video');
+ if(v){v.currentTime=0;v.muted=!(cfg.settings.sound&&unlocked);v.play().catch(()=>{v.muted=true;v.play().catch(()=>{})})}
+}
+const curEl=()=>feed.querySelector(`.post[data-i="${cur}"]`);
+const jump=i=>requestAnimationFrame(()=>{feed.scrollTop=i*feed.clientHeight});
+(function tick(){const el=curEl(),v=el&&el.querySelector('video');if(v&&v.duration)el.querySelector('.prog i').style.width=(v.currentTime/v.duration*100)+'%';requestAnimationFrame(tick)})();
+addEventListener('resize',()=>{if(cur>=0)feed.scrollTop=cur*feed.clientHeight});
+
+let wl=null;
+async function awake(){try{if('wakeLock' in navigator&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>wl=null)}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')awake()});
+document.addEventListener('pointerdown',()=>{awake();if(!unlocked){unlocked=true;const v=curEl()?.querySelector('video');if(v&&cfg.settings.sound){v.muted=false;v.play().catch(()=>{})}}},true);
+
+function toast(t,ms=1400){const x=$('#toast');x.textContent=t;x.classList.add('on');clearTimeout(x._t);x._t=setTimeout(()=>x.classList.remove('on'),ms)}
+const setCount=(el,a,n)=>{el.querySelector(`[data-a="${a}"] span`).textContent=fmt(n)};
+function like(el,p,force){const s=S(p),b=el.querySelector('[data-a="like"]');if(force&&s.liked)return;
+ s.liked=!s.liked;s.likes+=s.liked?1:-1;b.classList.toggle('on',s.liked);setCount(el,'like',s.likes)}
+let lastTap=0,tapT;
+feed.addEventListener('click',e=>{
+ const el=e.target.closest('.post');if(!el)return;
+ const p=cfg.posts[+el.dataset.i],s=S(p),b=e.target.closest('[data-a]');
+ if(b){const a=b.dataset.a;
+  if(a==='like')like(el,p);
+  else if(a==='save'){s.saved=!s.saved;s.saves+=s.saved?1:-1;b.classList.toggle('on',s.saved);setCount(el,'save',s.saves);if(s.saved)toast('Saved to your collection')}
+  else if(a==='rep'){s.reposted=!s.reposted;s.reposts+=s.reposted?1:-1;b.classList.toggle('on',s.reposted);setCount(el,'rep',s.reposts);if(s.reposted)toast('Reposted')}
+  else if(a==='share'){s.shares++;setCount(el,'share',s.shares);toast('Link copied')}
+  else if(a==='follow'){s.followed=!s.followed;b.classList.toggle('on',s.followed);b.textContent=s.followed?'Following':'Follow'}
+  else if(a==='cmt')openComments(p,el);
+  return}
+ const cap=e.target.closest('.cap');if(cap){cap.classList.toggle('open');return}
+ if(e.target.closest('.rail,.meta'))return;
+ const now=Date.now();
+ if(now-lastTap<300){clearTimeout(tapT);lastTap=0;
+  const r=el.getBoundingClientRect(),h=document.createElement('div');
+  h.className='burst';h.innerHTML=ICON.burst;h.style.left=(e.clientX-r.left)+'px';h.style.top=(e.clientY-r.top)+'px';h.style.setProperty('--r',(Math.random()*30-15)+'deg');
+  el.appendChild(h);setTimeout(()=>h.remove(),900);like(el,p,true);
+ }else{lastTap=now;tapT=setTimeout(()=>{const v=el.querySelector('video');const paused=el.classList.toggle('paused');if(v){paused?v.pause():v.play().catch(()=>{})}},300)}
+});
+
+let cPost=null,cEl=null;
+const TIMES=['2h','3h','5h','8h','14h','1d','1d','2d','3d','4d'];
+const parseC=t=>String(t||'').split('\n').map(l=>l.split('|').map(x=>x.trim())).filter(a=>a[0]&&a[1]).map(a=>({u:a[0],t:a[1],l:+a[2]||0}));
+const cHTML=(c,i,p)=>`<div class="c"><div class="cav" style="background:linear-gradient(135deg,hsl(${hue(c.u)} 45% 45%),hsl(${(hue(c.u)+40)%360} 50% 35%))">${esc(c.u[0].toUpperCase())}</div><div class="cb"><div class="cn">${esc(c.u)}${c.u===p.user?'<em>Creator</em>':''}</div><div class="ct">${rich(c.t)}</div><div class="cm">${c.time||TIMES[i%TIMES.length]}&nbsp;&nbsp;·&nbsp;&nbsp;Reply</div></div><button class="cl" data-l="${c.l}">${ICON.sheart}<span>${c.l?fmt(c.l):''}</span></button></div>`;
+function openComments(p,el){
+ cPost=p;cEl=el;const s=S(p);
+ $('#shCount').textContent=fmt(s.comments);
+ $('#clist').innerHTML=[...s.mine,...parseC(p.commentsText)].map((c,i)=>cHTML(c,i,p)).join('');
+ $('#clist').scrollTop=0;$('#back').classList.add('on');$('#sheet').classList.add('on');
+}
+function closeComments(){$('#back').classList.remove('on');const sh=$('#sheet');sh.classList.remove('on');sh.style.transform='';document.activeElement?.blur()}
+$('#back').onclick=closeComments;$('#shx').onclick=closeComments;
+$('#clist').addEventListener('click',e=>{const b=e.target.closest('.cl');if(!b)return;const on=b.classList.toggle('on');const n=(+b.dataset.l)+(on?1:0);b.querySelector('span').textContent=n?fmt(n):''});
+$('#cform').addEventListener('submit',e=>{e.preventDefault();const inp=$('#cinput'),t=inp.value.trim();if(!t||!cPost)return;
+ const s=S(cPost),c={u:'you',t,l:0,time:'now'};s.mine.unshift(c);s.comments++;inp.value='';
+ $('#clist').insertAdjacentHTML('afterbegin',cHTML(c,0,cPost));$('#shCount').textContent=fmt(s.comments);if(cEl)setCount(cEl,'cmt',s.comments)});
+{let y0=null;const sh=$('#sheet');
+ sh.addEventListener('touchstart',e=>{if(e.target.closest('#clist,.cin'))return;y0=e.touches[0].clientY;sh.style.transition='none'},{passive:true});
+ sh.addEventListener('touchmove',e=>{if(y0===null)return;sh.style.transform=`translateY(${Math.max(0,e.touches[0].clientY-y0)}px)`},{passive:true});
+ sh.addEventListener('touchend',e=>{if(y0===null)return;const d=e.changedTouches[0].clientY-y0;y0=null;sh.style.transition='';if(d>90)closeComments();else sh.style.transform=''});}
+
+/* tabs: tap switches; long-press opens setup. Logo: tap 3 times opens setup */
+{const tabs=$('#tabs');let lp,fired=false;
+ tabs.addEventListener('pointerdown',()=>{fired=false;lp=setTimeout(()=>{fired=true;openSetup()},800)});
+ ['pointerup','pointerleave','pointercancel'].forEach(ev=>tabs.addEventListener(ev,()=>clearTimeout(lp)));
+ tabs.addEventListener('contextmenu',e=>e.preventDefault());
+ tabs.addEventListener('click',e=>{if(fired)return;const t=e.target.closest('span');if(!t)return;tabs.querySelectorAll('span').forEach(x=>x.classList.toggle('on',x===t))});}
+{let n=0,t;$('#brand').addEventListener('click',()=>{n++;clearTimeout(t);t=setTimeout(()=>n=0,600);if(n>=3){n=0;openSetup()}})}
+addEventListener('keydown',e=>{if($('#setup').classList.contains('on'))return;
+ if(e.key==='s'||e.key==='S')openSetup();
+ if(e.key==='ArrowDown')feed.scrollBy({top:feed.clientHeight,behavior:'smooth'});
+ if(e.key==='ArrowUp')feed.scrollBy({top:-feed.clientHeight,behavior:'smooth'})});
+
+/* ---------- crew setup panel ---------- */
+const su=$('#setup');
+function card(p,i,n){const hv=!!urls[p.id+':video'],ha=!!urls[p.id+':avatar'];
+ return `<section class="card" data-pi="${i}">
+ <h2>Post ${i+1} <small>${esc(p.user)}</small></h2>
+ <div class="g2">
+  <label class="file${hv?' has':''}">${hv?'✓ Video loaded – replace':'Choose video'}<input type="file" accept="video/*" data-file="video"></label>
+  <label class="file${ha?' has':''}">${ha?'✓ Profile pic – replace':'Choose profile pic'}<input type="file" accept="image/*" data-file="avatar"></label>
+ </div>${diagLine(p,i)}
+ <label>Username</label><input type="text" data-f="user" value="${esc(p.user)}">
+ <label class="chk"><input type="checkbox" data-f="verified" ${p.verified?'checked':''}> Verified badge</label>
+ <label class="chk"><input type="checkbox" data-f="green" ${p.green?'checked':''}> Green screen this post (replace in DaVinci later)</label>
+ <label>Caption</label><textarea data-f="caption">${esc(p.caption)}</textarea>
+ <label>Sound name</label><input type="text" data-f="sound" value="${esc(p.sound)}">
+ <div class="g5">${[['likes','Likes'],['comments','Comments'],['reposts','Reposts'],['shares','Sends'],['saves','Saves']].map(([k,l])=>`<div><label>${l}</label><input type="number" inputmode="numeric" data-f="${k}" value="${+p[k]||0}"></div>`).join('')}</div>
+ <label>Comment list – one per line: name | comment | likes</label><textarea data-f="commentsText" rows="5">${esc(p.commentsText)}</textarea>
+ <label>Placeholder text (shown only when no video is loaded)</label><input type="text" data-f="overlay" value="${esc(p.overlay)}">
+ <label>Placeholder colours</label><select data-f="palette">${['Sunset','Coffee','Sky','Library','Neon','Forest'].map((x,k)=>`<option value="${k}" ${k==p.palette?'selected':''}>${x}</option>`).join('')}</select>
+ <div class="row">
+  <button class="btn" data-op="up" ${i===0?'disabled':''}>Move up</button>
+  <button class="btn" data-op="down" ${i===n-1?'disabled':''}>Move down</button>
+  ${hv?'<button class="btn" data-op="clrv">Remove video</button>':''}
+  <button class="btn dng" data-op="del">Delete post</button>
+ </div></section>`}
+function openSetup(){
+ const s=cfg.settings;
+ su.innerHTML=`<div class="suh"><h1>Feed setup</h1><button class="btn pri" data-op="close">Save &amp; close</button></div>
+ <p class="note">Crew only. To open this again: tap the swirl logo three times, or long-press the tabs. Videos in the site’s videos folder load by number (1.mp4 = post 1). Videos chosen here stay on this phone only.</p>
+ <section class="card"><h2>Shooting</h2>
+  <label>Feed opens on post</label><select id="sStart">${cfg.posts.map((p,i)=>`<option value="${i}" ${i==s.startIndex?'selected':''}>${i+1}. ${esc(p.user)}</option>`).join('')}</select>
+  <label class="chk"><input type="checkbox" id="sSound" ${s.sound?'checked':''}> Play sound (starts after the first touch)</label>
+  <label class="chk"><input type="checkbox" id="sMarkers" ${s.markers?'checked':''}> Tracking crosses on green-screen posts</label>
+  <label>Messages badge number (blank to hide)</label><input type="text" id="sBadge" value="${esc(s.badge)}">
+  <div class="row"><button class="btn" data-op="full">Go full screen</button><button class="btn" data-op="reset-likes">Reset likes for next take</button><button class="btn dng" data-op="reset">Restore sample posts</button></div>
+  <p class="note">${isWeb?'Running as a website: '+esc(location.host):'Opened as a file on this computer (fine for checking; the phone needs the website version).'} · Videos found in folder: ${Object.values(diag).filter(d=>d.video&&d.video.status==='ok').length} of ${cfg.posts.length}</p>
+  ${persistOK?'':'<p class="note" style="color:#ffb35c">This browser will not keep videos chosen here after a reload. Use the videos folder instead.</p>'}
+ </section>
+ ${cfg.posts.map((p,i)=>card(p,i,cfg.posts.length)).join('')}
+ <button class="btn" data-op="add" style="width:100%">+ Add post</button>`;
+ su.classList.add('on');su.scrollTop=0;
+ feed.querySelectorAll('video').forEach(v=>v.pause());
+}
+function readForm(){
+ const s=cfg.settings,sel=su.querySelector('#sStart');if(!sel)return;
+ s.startIndex=+sel.value||0;s.sound=su.querySelector('#sSound').checked;s.markers=su.querySelector('#sMarkers').checked;s.badge=su.querySelector('#sBadge').value.trim();
+ su.querySelectorAll('[data-pi]').forEach(c=>{const p=cfg.posts[+c.dataset.pi];
+  c.querySelectorAll('[data-f]').forEach(f=>{const k=f.dataset.f;p[k]=f.type==='checkbox'?f.checked:f.type==='number'||k==='palette'?(+f.value||0):f.value});
+  const x=st[p.id];if(x){x.likes=+p.likes+(x.liked?1:0);x.saves=+p.saves+(x.saved?1:0);x.reposts=+p.reposts+(x.reposted?1:0);x.shares=+p.shares;x.comments=+p.comments+x.mine.length}});
+}
+async function setFile(p,kind,file){const k=p.id+':'+kind;if(urls[k]&&urls[k].startsWith('blob:'))URL.revokeObjectURL(urls[k]);
+ urls[k]=URL.createObjectURL(file);p['has_'+kind]=true;try{await putF(k,file)}catch(e){persistOK=false}}
+async function clearFile(p,kind){const k=p.id+':'+kind;if(urls[k]&&urls[k].startsWith('blob:'))URL.revokeObjectURL(urls[k]);delete urls[k];p['has_'+kind]=false;await delF(k)}
+su.addEventListener('change',async e=>{const f=e.target.closest('[data-file]');if(!f||!f.files[0])return;
+ readForm();const p=cfg.posts[+f.closest('[data-pi]').dataset.pi];
+ f.parentElement.firstChild.textContent='Saving…';await setFile(p,f.dataset.file,f.files[0]);save();openSetup()});
+let confirmDel=null;
+su.addEventListener('click',async e=>{const b=e.target.closest('[data-op]');if(!b)return;const op=b.dataset.op;
+ const c=b.closest('[data-pi]'),i=c?+c.dataset.pi:-1;readForm();
+ if(op==='close'){save();su.classList.remove('on');render();jump(cfg.settings.startIndex);return}
+ if(op==='full'){const d=document.documentElement;try{await(d.requestFullscreen||d.webkitRequestFullscreen).call(d)}catch(err){toast('Full screen is not available here. On iPhone use Add to Home Screen.',3000)}return}
+ if(op==='reset-likes'){for(const k in st)delete st[k];toast('Likes reset');return}
+ if(op==='reset'){if(confirmDel!=='reset'){confirmDel='reset';b.textContent='Tap again to confirm';return}
+  for(const p of cfg.posts){await clearFile(p,'video');await clearFile(p,'avatar')}cfg=clone(DEFAULT);for(const k in st)delete st[k];for(const k in urls)delete urls[k];await loadFolder()}
+ if(op==='up'&&i>0)[cfg.posts[i-1],cfg.posts[i]]=[cfg.posts[i],cfg.posts[i-1]];
+ if(op==='down'&&i<cfg.posts.length-1)[cfg.posts[i+1],cfg.posts[i]]=[cfg.posts[i],cfg.posts[i+1]];
+ if(op==='clrv')await clearFile(cfg.posts[i],'video');
+ if(op==='del'){if(confirmDel!==cfg.posts[i].id){confirmDel=cfg.posts[i].id;b.textContent='Tap again to delete';return}
+  await clearFile(cfg.posts[i],'video');await clearFile(cfg.posts[i],'avatar');cfg.posts.splice(i,1)}
+ if(op==='add')cfg.posts.push({id:'p'+Date.now(),user:'new.creator',verified:false,caption:'new post #foryou',sound:'original audio · new.creator',likes:12000,comments:240,reposts:300,shares:120,saves:500,overlay:'',palette:cfg.posts.length%PAL.length,green:false,commentsText:'someone | love this | 120'});
+ confirmDel=null;cfg.settings.startIndex=Math.min(cfg.settings.startIndex,Math.max(0,cfg.posts.length-1));save();
+ const y=su.scrollTop;openSetup();su.scrollTop=op==='add'?su.scrollHeight:y;
+});
+
+/* videos/1.mp4 → post 1, avatars/1.jpg → post 1's profile pic. Works as a website and when opened as a file */
+const diag={};
+const isWeb=location.protocol.startsWith('http');
+const probe=(src,kind)=>new Promise(res=>{const el=document.createElement(kind==='video'?'video':'img');let done=false;
+ const fin=ok=>{if(done)return;done=true;clearTimeout(t);if(kind==='video'){el.removeAttribute('src');el.load()}res(ok)};
+ const t=setTimeout(()=>fin(false),9000);
+ if(kind==='video'){el.preload='metadata';el.muted=true;el.onloadedmetadata=()=>fin(true)}else el.onload=()=>fin(true);
+ el.onerror=()=>fin(false);el.src=src});
+const names=(n,exts)=>{const out=[];for(const b of [n,'0'+n])for(const x of exts)for(const e of [x,x.toUpperCase()])out.push(b+'.'+e);
+ for(const x of exts)out.push(n+'.'+x+'.'+x,n+'.'+x+'.mp4');return [...new Set(out)]};
+const exists=async src=>{try{const r=await fetch(src,{method:'HEAD',cache:'no-store'});return r.ok}catch(e){return null}};
+async function findMedia(dir,n,kind){
+ const exts=kind==='video'?['mp4','mov','m4v','webm']:['jpg','jpeg','png','webp','heic'];
+ let foundButBad=null;
+ for(const name of names(n,exts)){const src=dir+'/'+encodeURIComponent(name);
+  if(isWeb){const ex=await exists(src);if(ex===false)continue}
+  if(await probe(src,kind))return {src,name,status:'ok'};
+  if(isWeb&&!foundButBad)foundButBad=name}
+ return foundButBad?{name:foundButBad,status:'unplayable'}:{status:'missing'}}
+async function loadFolder(){
+ await Promise.all(cfg.posts.map(async(p,i)=>{
+  const d=diag[p.id]={};
+  if(!urls[p.id+':video']){const r=await findMedia('videos',i+1,'video');d.video=r;if(r.src)urls[p.id+':video']=r.src}else d.video={status:'picked'};
+  if(!urls[p.id+':avatar']){const r=await findMedia('avatars',i+1,'image');d.avatar=r;if(r.src)urls[p.id+':avatar']=r.src}}))}
+function diagLine(p,i){const v=(diag[p.id]||{}).video;if(!v)return'';
+ if(v.status==='picked')return'<p class="note" style="color:#7d9">✓ Using a video chosen on this phone</p>';
+ if(v.status==='ok')return`<p class="note" style="color:#7d9">✓ Loaded videos/${esc(v.name)}</p>`;
+ if(v.status==='unplayable')return`<p class="note" style="color:#ffb35c">⚠ Found videos/${esc(v.name)} but this browser can't play it. It's probably an iPhone HEVC video or very large. Export it again as H.264 MP4 (for example from DaVinci Resolve) and name it ${i+1}.mp4.</p>`;
+ return`<p class="note" style="color:#ff8a8a">✗ ${isWeb?'No video named '+(i+1)+'.mp4 in the videos folder on this website.':'No playable video named '+(i+1)+'.mp4 in the videos folder.'}</p>`}
+(async()=>{
+ for(const p of cfg.posts)for(const k of ['video','avatar']){if(!p['has_'+k])continue;
+  try{const b=await getF(p.id+':'+k);if(b)urls[p.id+':'+k]=URL.createObjectURL(b);else p['has_'+k]=false}catch(e){persistOK=false}}
+ await loadFolder();
+ render();jump(cfg.settings.startIndex||0);
+ let seen=false;try{seen=localStorage.getItem(KEY+':hint')}catch(e){}
+ const nVid=cfg.posts.filter(p=>urls[p.id+':video']).length;
+ if(!nVid)setTimeout(()=>toast('No videos found. Tap the swirl logo 3 times to see why.',4000),700);
+ else if(!seen){setTimeout(()=>toast('Crew tip: tap the swirl logo three times for setup',3500),600);try{localStorage.setItem(KEY+':hint','1')}catch(e){}}
+})();
+}
+</script>
+</body>
+</html>
