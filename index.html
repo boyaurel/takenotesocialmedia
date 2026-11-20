@@ -32,8 +32,10 @@ svg{display:block}
 #feed::-webkit-scrollbar{display:none}
 .post{position:relative;height:100%;scroll-snap-align:start;scroll-snap-stop:always;overflow:hidden;background:#0d0d0d}
 .media{position:absolute;inset:0}
-.media video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
-.media.g video{opacity:0}
+.media video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .25s}
+.media video.ready{opacity:1}
+.post.blocked .pauseico{opacity:1;transform:none}
+.media.g video,.media.g video.ready{opacity:0}
 .ph{position:absolute;inset:0;background:linear-gradient(160deg,var(--c1),var(--c2) 55%,var(--c3));overflow:hidden}
 .ph i{position:absolute;border-radius:50%;filter:blur(42px);opacity:.75;animation:fl 9s ease-in-out infinite alternate}
 .ph .b1{width:75%;height:45%;left:-12%;top:8%;background:var(--c3)}
@@ -198,6 +200,7 @@ svg{display:block}
 <div id="setup"></div>
 
 <script>
+window.__errs=[];addEventListener('error',e=>__errs.push((e.message||'error')+(e.filename?' @'+e.filename.split('/').pop()+':'+e.lineno:'')));addEventListener('unhandledrejection',e=>__errs.push('promise: '+((e.reason&&(e.reason.message||e.reason.name))||e.reason)));
 {
 const I=(d,extra='')=>`<svg class="ic" viewBox="0 0 24 24" ${extra}>${d}</svg>`;
 const ICON={
@@ -253,9 +256,9 @@ const avBg=p=>urls[p.id+':avatar']?'':`background:linear-gradient(135deg,hsl(${h
 const avatar=p=>urls[p.id+':avatar']?`<img src="${urls[p.id+':avatar']}" alt="">`:esc((p.user||'?')[0].toUpperCase());
 function postHTML(p,i){
  const v=urls[p.id+':video'],pal=PAL[(+p.palette||0)%PAL.length],s=S(p);
- let m=v?`<video src="${v}" playsinline webkit-playsinline muted loop preload="${i===cur||i===cur+1||(cur<0&&i<=(cfg.settings.startIndex||0)+1)?'auto':'metadata'}"></video>`:'';
+ let m=v?`<video src="${v}" playsinline webkit-playsinline muted loop data-src="${v}" preload="${i===cur||i===cur+1||(cur<0&&i<=(cfg.settings.startIndex||0)+1)?'auto':'metadata'}"></video>`:'';
  if(p.green)m+=`<div class="greenbox">${cfg.settings.markers?'<i class="mk tl"></i><i class="mk tr"></i><i class="mk bl"></i><i class="mk br"></i>':''}</div>`;
- else if(!v)m+=`<div class="ph" style="--c1:${pal[0]};--c2:${pal[1]};--c3:${pal[2]}"><i class="b1"></i><i class="b2"></i><i class="b3"></i></div>${p.overlay?`<div class="ovl">${esc(p.overlay)}</div>`:''}`;
+ else m=`<div class="ph" style="--c1:${pal[0]};--c2:${pal[1]};--c3:${pal[2]}"><i class="b1"></i><i class="b2"></i><i class="b3"></i></div>${!v&&p.overlay?`<div class="ovl">${esc(p.overlay)}</div>`:''}`+m;
  return `<section class="post" data-i="${i}"><div class="media${p.green?' g':''}">${m}</div><div class="shade"></div><div class="pauseico glass">${ICON.play}</div>
  <div class="rail glass">
   <button class="act like${s.liked?' on':''}" data-a="like">${ICON.heart}<span>${fmt(s.likes)}</span></button>
@@ -271,6 +274,10 @@ function postHTML(p,i){
  </div>
  <div class="prog"><i></i></div></section>`;
 }
+const vErr={};
+feed.addEventListener('loadeddata',e=>{if(e.target.tagName==='VIDEO')e.target.classList.add('ready')},true);
+feed.addEventListener('playing',e=>{if(e.target.tagName==='VIDEO'){e.target.classList.add('ready');e.target.closest('.post')?.classList.remove('blocked')}},true);
+feed.addEventListener('error',e=>{if(e.target.tagName==='VIDEO'){const el=e.target.closest('.post');const me=e.target.error;if(el)vErr[el.dataset.i]='video error '+(me?me.code+' '+(me.message||''):'')}},true);
 function render(){
  if(io)io.disconnect();
  feed.innerHTML=cfg.posts.map(postHTML).join('');
@@ -284,7 +291,7 @@ function activate(el){
  const v=el.querySelector('video');
  feed.querySelectorAll('video').forEach(o=>{if(o!==v&&!o.paused)o.pause()});
  const nx=feed.querySelector(`.post[data-i="${i+1}"] video`);if(nx&&nx.preload!=='auto'){nx.preload='auto';nx.load()}
- if(v){v.currentTime=0;v.muted=!(cfg.settings.sound&&unlocked);v.play().catch(err=>{if(err&&err.name==='NotAllowedError'&&cur===i){v.muted=true;v.play().catch(()=>{})}})}
+ if(v){v.currentTime=0;v.muted=!(cfg.settings.sound&&unlocked);v.play().catch(err=>{if(err&&err.name==='NotAllowedError'&&cur===i){v.muted=true;v.play().catch(()=>{if(cur===i){el.classList.add('blocked');vErr[i]='autoplay blocked by the phone (Low Power Mode?)'}})}})}
 }
 const curEl=()=>feed.querySelector(`.post[data-i="${cur}"]`);
 const jump=i=>requestAnimationFrame(()=>{feed.scrollTop=i*feed.clientHeight});
@@ -294,7 +301,9 @@ addEventListener('resize',()=>{if(cur>=0)feed.scrollTop=cur*feed.clientHeight});
 let wl=null;
 async function awake(){try{if('wakeLock' in navigator&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>wl=null)}}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')awake()});
-document.addEventListener('pointerdown',()=>{awake();if(!unlocked){unlocked=true;const v=curEl()?.querySelector('video');if(v&&cfg.settings.sound){v.muted=false;v.play().catch(()=>{})}}},true);
+function kick(){awake();const el=curEl(),v=el&&el.querySelector('video');if(!unlocked){unlocked=true;if(v&&cfg.settings.sound)v.muted=false}
+ if(v&&v.paused&&!el.classList.contains('paused')){if(el.classList.contains('blocked'))el.dataset.kicked='1';v.play().then(()=>el.classList.remove('blocked')).catch(()=>{})}}
+document.addEventListener('touchstart',kick,{capture:true,passive:true});document.addEventListener('pointerdown',kick,true);
 
 function toast(t,ms=1400){const x=$('#toast');x.textContent=t;x.classList.add('on');clearTimeout(x._t);x._t=setTimeout(()=>x.classList.remove('on'),ms)}
 const setCount=(el,a,n)=>{el.querySelector(`[data-a="${a}"] span`).textContent=fmt(n)};
@@ -319,7 +328,7 @@ feed.addEventListener('click',e=>{
   const r=el.getBoundingClientRect(),h=document.createElement('div');
   h.className='burst';h.innerHTML=ICON.burst;h.style.left=(e.clientX-r.left)+'px';h.style.top=(e.clientY-r.top)+'px';h.style.setProperty('--r',(Math.random()*30-15)+'deg');
   el.appendChild(h);setTimeout(()=>h.remove(),900);like(el,p,true);
- }else{lastTap=now;tapT=setTimeout(()=>{const v=el.querySelector('video');const paused=el.classList.toggle('paused');if(v){paused?v.pause():v.play().catch(()=>{})}},300)}
+ }else{lastTap=now;if(el.dataset.kicked){delete el.dataset.kicked;return}tapT=setTimeout(()=>{const v=el.querySelector('video');const paused=el.classList.toggle('paused');if(v){paused?v.pause():v.play().catch(()=>{})}},300)}
 });
 
 let cPost=null,cEl=null;
@@ -390,6 +399,8 @@ function openSetup(){
   <label>Messages badge number (blank to hide)</label><input type="text" id="sBadge" value="${esc(s.badge)}">
   <div class="row"><button class="btn" data-op="full">Go full screen</button><button class="btn" data-op="reset-likes">Reset likes for next take</button><button class="btn dng" data-op="reset">Restore sample posts</button></div>
   <p class="note">${isWeb?'Running as a website: '+esc(location.host):'Opened as a file on this computer (fine for checking; the phone needs the website version).'} · Videos found in folder: ${Object.values(diag).filter(d=>d.video&&d.video.status==='ok').length} of ${cfg.posts.length}</p>
+  ${(__errs.length||Object.keys(vErr).length)?`<p class="note" style="color:#ffb35c">Problems log (screenshot this if something is wrong):<br>${[...Object.entries(vErr).map(([i,m])=>'Post '+(+i+1)+': '+m),...__errs.slice(-8)].map(esc).join('<br>')}</p>`:'<p class="note" style="color:#7d9">No errors so far.</p>'}
+  <p class="note">${esc(navigator.userAgent.replace(/^.*?\((.*?)\).*$/,'$1'))}</p>
   ${persistOK?'':'<p class="note" style="color:#ffb35c">This browser will not keep videos chosen here after a reload. Use the videos folder instead.</p>'}
  </section>
  ${cfg.posts.map((p,i)=>card(p,i,cfg.posts.length)).join('')}
@@ -474,9 +485,10 @@ function diagLine(p,i){const v=(diag[p.id]||{}).video;if(!v)return'';
  if(v.status==='unplayable')return`<p class="note" style="color:#ffb35c">⚠ Found videos/${esc(v.name)} but this browser can't play it. It's probably an iPhone HEVC video or very large. Export it again as H.264 MP4 (for example from DaVinci Resolve) and name it ${i+1}.mp4.</p>`;
  return`<p class="note" style="color:#ff8a8a">✗ ${isWeb?'No video named '+(i+1)+'.mp4 in the videos folder on this website.':'No playable video named '+(i+1)+'.mp4 in the videos folder.'}</p>`}
 (async()=>{
- for(const p of cfg.posts)for(const k of ['video','avatar']){if(!p['has_'+k])continue;
-  try{const b=await getF(p.id+':'+k);if(b)urls[p.id+':'+k]=URL.createObjectURL(b);else p['has_'+k]=false}catch(e){persistOK=false}}
  render();jump(cfg.settings.startIndex||0);
+ const within=(pr,ms)=>Promise.race([pr,new Promise((_,rej)=>setTimeout(()=>rej(new Error('phone storage did not respond')),ms))]);
+ for(const p of cfg.posts)for(const k of ['video','avatar']){if(!p['has_'+k])continue;
+  try{const b=await within(getF(p.id+':'+k),2500);if(b){urls[p.id+':'+k]=URL.createObjectURL(b);refreshPost(cfg.posts.indexOf(p))}else p['has_'+k]=false}catch(e){persistOK=false;__errs.push(String(e.message||e))}}
  await loadFolder(refreshPost);
  let seen=false;try{seen=localStorage.getItem(KEY+':hint')}catch(e){}
  const nVid=cfg.posts.filter(p=>urls[p.id+':video']).length;
