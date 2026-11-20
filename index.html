@@ -495,6 +495,7 @@ function diagLine(p,i){const v=(diag[p.id]||{}).video;if(!v)return'';
  for(const p of cfg.posts)for(const k of ['video','avatar']){if(!p['has_'+k])continue;
   try{const b=await within(getF(p.id+':'+k),2500);if(b){urls[p.id+':'+k]=URL.createObjectURL(b);refreshPost(cfg.posts.indexOf(p))}else p['has_'+k]=false}catch(e){persistOK=false;__errs.push(String(e.message||e))}}
  await loadFolder(refreshPost);
+ if(su.classList.contains('on')){readForm();const y=su.scrollTop;openSetup();su.scrollTop=y}  /* refresh the video check if setup was already open */
  let seen=false;try{seen=localStorage.getItem(KEY+':hint')}catch(e){}
  const nVid=cfg.posts.filter(p=>urls[p.id+':video']).length;
  if(!nVid)setTimeout(()=>toast('No videos found. Tap the swirl logo 3 times to see why.',4000),700);
