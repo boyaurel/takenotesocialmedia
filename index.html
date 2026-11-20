@@ -91,7 +91,7 @@ svg{display:block}
 /* top */
 #top{position:fixed;left:0;right:0;top:calc(var(--st) + 8px);z-index:4;padding:0 14px}
 .brandrow{display:flex;align-items:center;justify-content:space-between;height:40px}
-#brand{display:flex;align-items:center;gap:7px;font-family:var(--rf);font-weight:800;font-size:25px;letter-spacing:-.5px;cursor:pointer}
+#brand{display:flex;align-items:center;gap:7px;padding:8px 14px 8px 0;margin:-8px 0;touch-action:none;-webkit-user-select:none;font-family:var(--rf);font-weight:800;font-size:25px;letter-spacing:-.5px;cursor:pointer}
 #brand svg{width:28px;height:28px}
 .tico{display:flex;gap:6px}
 .tico button{width:40px;height:40px;display:grid;place-items:center;position:relative}
@@ -358,7 +358,12 @@ $('#cform').addEventListener('submit',e=>{e.preventDefault();const inp=$('#cinpu
  ['pointerup','pointerleave','pointercancel'].forEach(ev=>tabs.addEventListener(ev,()=>clearTimeout(lp)));
  tabs.addEventListener('contextmenu',e=>e.preventDefault());
  tabs.addEventListener('click',e=>{if(fired)return;const t=e.target.closest('span');if(!t)return;tabs.querySelectorAll('span').forEach(x=>x.classList.toggle('on',x===t))});}
-{let n=0,t;$('#brand').addEventListener('click',()=>{n++;clearTimeout(t);t=setTimeout(()=>n=0,600);if(n>=3){n=0;openSetup()}})}
+{let n=0,t,last=0;const tap=e=>{const now=Date.now();if(now-last<40)return;last=now;  /* touchend and click can both fire for one tap */
+  if(e.cancelable&&e.type==='touchend')e.preventDefault();n++;clearTimeout(t);t=setTimeout(()=>n=0,900);if(n>=3){n=0;openSetup()}};
+ const br=$('#brand');br.addEventListener('touchend',tap,{passive:false});br.addEventListener('click',tap)}
+/* backup: open the site with #setup at the end of the address */
+const hashSetup=()=>{if(location.hash==='#setup'){openSetup();history.replaceState(null,'',location.pathname+location.search)}};
+addEventListener('hashchange',hashSetup);
 addEventListener('keydown',e=>{if($('#setup').classList.contains('on'))return;
  if(e.key==='s'||e.key==='S')openSetup();
  if(e.key==='ArrowDown')feed.scrollBy({top:feed.clientHeight,behavior:'smooth'});
@@ -391,7 +396,7 @@ function card(p,i,n){const hv=!!urls[p.id+':video'],ha=!!urls[p.id+':avatar'];
 function openSetup(){
  const s=cfg.settings;
  su.innerHTML=`<div class="suh"><h1>Feed setup</h1><button class="btn pri" data-op="close">Save &amp; close</button></div>
- <p class="note">Crew only. To open this again: tap the swirl logo three times, or long-press the tabs. Videos in the site’s videos folder load by number (1.mp4 = post 1). Videos chosen here stay on this phone only.</p>
+ <p class="note">Crew only. To open this again: tap the swirl logo three times, long-press the tabs, or add #setup to the end of the web address. Videos in the site’s videos folder load by number (1.mp4 = post 1). Videos chosen here stay on this phone only.</p>
  <section class="card"><h2>Shooting</h2>
   <label>Feed opens on post</label><select id="sStart">${cfg.posts.map((p,i)=>`<option value="${i}" ${i==s.startIndex?'selected':''}>${i+1}. ${esc(p.user)}</option>`).join('')}</select>
   <label class="chk"><input type="checkbox" id="sSound" ${s.sound?'checked':''}> Play sound (starts after the first touch)</label>
@@ -485,7 +490,7 @@ function diagLine(p,i){const v=(diag[p.id]||{}).video;if(!v)return'';
  if(v.status==='unplayable')return`<p class="note" style="color:#ffb35c">⚠ Found videos/${esc(v.name)} but this browser can't play it. It's probably an iPhone HEVC video or very large. Export it again as H.264 MP4 (for example from DaVinci Resolve) and name it ${i+1}.mp4.</p>`;
  return`<p class="note" style="color:#ff8a8a">✗ ${isWeb?'No video named '+(i+1)+'.mp4 in the videos folder on this website.':'No playable video named '+(i+1)+'.mp4 in the videos folder.'}</p>`}
 (async()=>{
- render();jump(cfg.settings.startIndex||0);
+ render();jump(cfg.settings.startIndex||0);hashSetup();
  const within=(pr,ms)=>Promise.race([pr,new Promise((_,rej)=>setTimeout(()=>rej(new Error('phone storage did not respond')),ms))]);
  for(const p of cfg.posts)for(const k of ['video','avatar']){if(!p['has_'+k])continue;
   try{const b=await within(getF(p.id+':'+k),2500);if(b){urls[p.id+':'+k]=URL.createObjectURL(b);refreshPost(cfg.posts.indexOf(p))}else p['has_'+k]=false}catch(e){persistOK=false;__errs.push(String(e.message||e))}}
